@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="TranslatePro" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>TranslatePro Batch Interpreter</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="mobile-notice" id="mobileNotice" hidden>
+      <strong>iPhone 使用提示</strong>
+      <span>麥克風需要 HTTPS。若用手機開啟，請使用部署網址或 ngrok/localtunnel 的 https 網址。</span>
+      <button id="dismissNotice" type="button">知道了</button>
+    </div>
+
+    <main class="app-shell">
+      <section class="pane pane-top" aria-label="上方倒置語言區">
+        <div class="pane-inner upside-down">
+          <div class="pane-bar">
+            <label>
+              上方語言
+              <select id="topLanguage"></select>
+            </label>
+            <span class="status-dot" id="topStatus">待機</span>
+          </div>
+          <div class="transcript-grid">
+            <article>
+              <h2>錄音轉錄</h2>
+              <p id="topOriginal" class="text-area muted"></p>
+            </article>
+            <article>
+              <h2>完整翻譯結果</h2>
+              <p id="topTranslation" class="text-area"></p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="control-strip" aria-label="批次口譯控制列">
+        <div class="brand">TranslatePro</div>
+        <button id="startButton" class="primary">開始錄音</button>
+        <button id="stopButton" disabled>結束並翻譯</button>
+        <label class="switch">
+          <input id="speakToggle" type="checkbox" checked />
+          <span>翻譯後朗讀</span>
+        </label>
+        <label>
+          說話端
+          <select id="directionSelect">
+            <option value="bottom-to-top">下方說，翻到上方</option>
+            <option value="top-to-bottom">上方說，翻到下方</option>
+          </select>
+        </label>
+        <label>
+          語音模板
+          <select id="voiceSelect">
+            <option value="alloy">alloy - 推薦，中性穩定</option>
+            <option value="coral">coral - 溫暖清楚</option>
+            <option value="verse">verse - 表情自然</option>
+            <option value="shimmer">shimmer - 明亮清晰</option>
+            <option value="ash">ash - 沉穩會議</option>
+          </select>
+        </label>
+        <button id="swapButton" title="交換上下語言">交換語言</button>
+        <button id="exportButton" disabled>匯出文字檔</button>
+      </section>
+
+      <section class="pane pane-bottom" aria-label="下方語言區">
+        <div class="pane-inner">
+          <div class="pane-bar">
+            <label>
+              下方語言
+              <select id="bottomLanguage"></select>
+            </label>
+            <span class="status-dot" id="bottomStatus">待機</span>
+          </div>
+          <div class="transcript-grid">
+            <article>
+              <h2>錄音轉錄</h2>
+              <p id="bottomOriginal" class="text-area muted"></p>
+            </article>
+            <article>
+              <h2>完整翻譯結果</h2>
+              <p id="bottomTranslation" class="text-area"></p>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

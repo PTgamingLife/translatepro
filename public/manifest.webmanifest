@@ -1,0 +1,19 @@
+{
+  "name": "TranslatePro Realtime Interpreter",
+  "short_name": "TranslatePro",
+  "description": "Realtime table-side interpreter for Chinese, English, Vietnamese, Thai, and Indonesian.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
