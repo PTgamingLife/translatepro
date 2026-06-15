@@ -20,16 +20,16 @@ const placeholders = {
     inactive: "This side is not the current translation output."
   },
   vi: {
-    sourceTop: "Bấm bắt đầu để ghi âm; bản ghi tiếng Việt sẽ hiện sau khi kết thúc.",
-    sourceBottom: "Bấm bắt đầu để ghi âm; bản ghi tiếng Việt sẽ hiện sau khi kết thúc.",
+    sourceTop: "Bấm bắt đầu để ghi âm; bản ghi tiếng Việt sẽ hiển thị sau khi kết thúc.",
+    sourceBottom: "Bấm bắt đầu để ghi âm; bản ghi tiếng Việt sẽ hiển thị sau khi kết thúc.",
     translation: "Bản dịch tiếng Việt sẽ hiển thị ở đây.",
-    inactive: "Đây không phải vùng hiển thị bản dịch hiện tại."
+    inactive: "Khu vực này hiện không phải là kết quả dịch."
   },
   th: {
-    sourceTop: "กดเริ่มเพื่อบันทึกเสียง แล้วข้อความไทยทั้งหมดจะแสดงหลังจากกดจบ",
-    sourceBottom: "กดเริ่มเพื่อบันทึกเสียง แล้วข้อความไทยทั้งหมดจะแสดงหลังจากกดจบ",
+    sourceTop: "กดเริ่มเพื่อบันทึกเสียง ข้อความภาษาไทยจะแสดงหลังจากกดจบ",
+    sourceBottom: "กดเริ่มเพื่อบันทึกเสียง ข้อความภาษาไทยจะแสดงหลังจากกดจบ",
     translation: "คำแปลภาษาไทยจะแสดงที่นี่",
-    inactive: "ส่วนนี้ไม่ใช่พื้นที่แสดงคำแปลปัจจุบัน"
+    inactive: "ส่วนนี้ไม่ใช่พื้นที่แสดงผลคำแปลในขณะนี้"
   },
   id: {
     sourceTop: "Tekan mulai untuk merekam; transkrip lengkap muncul setelah selesai.",
@@ -56,7 +56,10 @@ const els = {
   directionSelect: document.querySelector("#directionSelect"),
   swapButton: document.querySelector("#swapButton"),
   mobileNotice: document.querySelector("#mobileNotice"),
-  dismissNotice: document.querySelector("#dismissNotice")
+  dismissNotice: document.querySelector("#dismissNotice"),
+  setupNotice: document.querySelector("#setupNotice"),
+  setupForm: document.querySelector("#setupForm"),
+  projectRefInput: document.querySelector("#projectRefInput")
 };
 
 let recorder = null;
@@ -71,6 +74,7 @@ function init() {
   fillLanguageSelect(els.topLanguage, "en");
   fillLanguageSelect(els.bottomLanguage, "zh");
   registerServiceWorker();
+  setupBackendConfig();
   showMobileNoticeIfNeeded();
   resetText();
 
@@ -102,6 +106,7 @@ async function startRecording() {
   if (recorder?.state === "recording") return;
 
   try {
+    assertBackendReady();
     assertAudioReady();
     resetText();
     log = [];
@@ -122,7 +127,7 @@ async function startRecording() {
     recorder.addEventListener("stop", translateRecording);
     recorder.start();
     setLiveState(true, "錄音中");
-    setSourceText("錄音中...按「結束」後會一次送出完整錄音翻譯。");
+    setSourceText("錄音中...請完整說完後再按結束並翻譯。");
   } catch (error) {
     console.error(error);
     cleanupRecording();
@@ -144,19 +149,19 @@ async function translateRecording() {
     const mimeType = recorder.mimeType || audioChunks[0]?.type || "audio/webm";
     const audioBlob = new Blob(audioChunks, { type: mimeType });
 
-    if (!audioBlob.size) throw new Error("沒有錄到聲音，請重新按開始錄音。");
+    if (!audioBlob.size) throw new Error("沒有收到錄音，請確認麥克風權限後再試一次。");
 
-    setSourceText("錄音已收到，正在轉錄與翻譯...");
-    const response = await fetch(`/api/batch-translate?source=${encodeURIComponent(source)}&target=${encodeURIComponent(target)}`, {
+    setSourceText("錄音完成，正在轉成文字並翻譯...");
+    const response = await fetch(batchTranslateUrl(source, target), {
       method: "POST",
       headers: { "Content-Type": mimeType },
       body: audioBlob
     });
 
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "批次翻譯失敗");
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "翻譯服務失敗");
 
-    setSourceText(data.transcript || "沒有辨識到文字。");
+    setSourceText(data.transcript || "沒有轉錄出文字。");
     setTargetText(data.translation || "沒有翻譯結果。");
     pushLog("transcript", data.transcript || "");
     pushLog("translation", data.translation || "");
@@ -165,14 +170,73 @@ async function translateRecording() {
       speakTranslatedText(data.translation, target);
     }
     els.exportButton.disabled = log.length === 0;
-    setLiveState(false, "已完成");
+    setLiveState(false, "已結束");
   } catch (error) {
     console.error(error);
-    alert(error.message || "批次翻譯失敗");
+    alert(error.message || "翻譯服務失敗");
     setLiveState(false, "失敗");
   } finally {
     cleanupRecording();
   }
+}
+
+function batchTranslateUrl(source, target) {
+  const query = `source=${encodeURIComponent(source)}&target=${encodeURIComponent(target)}`;
+  const edgeUrl = configuredEdgeFunctionUrl();
+  if (edgeUrl) return `${edgeUrl}?${query}`;
+  if (isLocalBackend()) return `/api/batch-translate?${query}`;
+  throw new Error("請先設定 Supabase Project Ref，GitHub Pages 需要透過 Edge Function 翻譯。");
+}
+
+function configuredEdgeFunctionUrl() {
+  const config = window.TRANSLATEPRO_CONFIG || {};
+  const directUrl = config.edgeFunctionUrl || localStorage.getItem("translatepro-edge-url");
+  if (directUrl) return directUrl.replace(/\/$/, "");
+
+  const projectRef = config.supabaseProjectRef || localStorage.getItem("translatepro-project-ref");
+  if (!projectRef) return "";
+  return `https://${projectRef}.supabase.co/functions/v1/batch-translate`;
+}
+
+function setupBackendConfig() {
+  const config = window.TRANSLATEPRO_CONFIG || {};
+  const storedRef = localStorage.getItem("translatepro-project-ref") || "";
+  const storedUrl = localStorage.getItem("translatepro-edge-url") || "";
+  const configured = Boolean(config.supabaseProjectRef || config.edgeFunctionUrl || storedRef || storedUrl);
+
+  if (els.projectRefInput) {
+    els.projectRefInput.value = storedRef || config.supabaseProjectRef || config.edgeFunctionUrl || storedUrl || "";
+  }
+
+  if (els.setupNotice) {
+    els.setupNotice.hidden = isLocalBackend() || configured;
+  }
+
+  els.setupForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const value = els.projectRefInput.value.trim();
+    if (!value) return;
+
+    if (value.startsWith("https://")) {
+      localStorage.setItem("translatepro-edge-url", value);
+      localStorage.removeItem("translatepro-project-ref");
+    } else {
+      localStorage.setItem("translatepro-project-ref", value);
+      localStorage.removeItem("translatepro-edge-url");
+    }
+    els.setupNotice.hidden = true;
+  });
+}
+
+function assertBackendReady() {
+  if (isLocalBackend()) return;
+  if (configuredEdgeFunctionUrl()) return;
+  els.setupNotice.hidden = false;
+  throw new Error("請先輸入 Supabase Project Ref，才能從 GitHub Pages 使用翻譯。");
+}
+
+function isLocalBackend() {
+  return ["localhost", "127.0.0.1", "::1"].includes(location.hostname);
 }
 
 function mediaRecorderOptions() {
@@ -195,17 +259,17 @@ function cleanupRecording() {
 
 function assertAudioReady() {
   if (!window.isSecureContext) {
-    throw new Error("iPhone 或手機瀏覽器需要 HTTPS 才能使用麥克風。請改用 https 部署網址或 ngrok/localtunnel 的 https 網址。");
+    throw new Error("iPhone 需要 HTTPS 才能使用麥克風。請用 GitHub Pages、Supabase 或 https tunnel 開啟。");
   }
 
   if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
-    throw new Error("這個瀏覽器不支援網頁錄音。請使用 iPhone Safari/Chrome 最新版，並允許麥克風權限。");
+    throw new Error("這個瀏覽器不支援錄音。請使用 iPhone Safari/Chrome 或新版桌面瀏覽器。");
   }
 }
 
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
-  navigator.serviceWorker.register("/service-worker.js").catch((error) => {
+  navigator.serviceWorker.register("./service-worker.js").catch((error) => {
     console.warn("Service worker registration failed", error);
   });
 }
@@ -219,10 +283,10 @@ function showMobileNoticeIfNeeded() {
 
 function formatStartError(error) {
   if (error?.name === "NotAllowedError") {
-    return "麥克風權限被拒絕。請在瀏覽器網址列或 iPhone 設定中允許此網站使用麥克風。";
+    return "麥克風權限被拒絕。請到瀏覽器或 iPhone 設定中允許此網站使用麥克風。";
   }
   if (error?.name === "NotFoundError") {
-    return "找不到麥克風裝置。請確認手機或電腦有可用麥克風。";
+    return "找不到可用的麥克風，請確認裝置或耳機麥克風是否正常。";
   }
   return error?.message || "錄音啟動失敗";
 }

@@ -1,60 +1,108 @@
-# TranslatePro Realtime Interpreter
+# TranslatePro Batch Interpreter
 
-即時雙向口譯網頁 App。畫面上下分區，上方倒置給對面使用者閱讀，下方正向顯示本端語言。後端使用 OpenAI Realtime API 建立短期 client secret，瀏覽器透過 WebRTC 串流麥克風音訊。
+手機可用的雙向口譯網頁 App。畫面分成上下兩個語言區塊，上方區塊 180 度旋轉，方便面對面使用。按「開始錄音」後只錄音，按「結束並翻譯」後才把完整錄音一次交給 AI 轉錄與翻譯，讓上下文更連貫。
 
-## Run
+支援語言：
+
+- 中文
+- English
+- Tiếng Việt
+- ไทย
+- Bahasa Indonesia
+
+## Local Run
 
 ```powershell
 npm start
 ```
 
-開啟 `http://localhost:3000`。
+本機預設網址：
 
-如果 `3000` 已被占用，程式會自動嘗試下一個 port，請以終端機顯示的網址為準。
-
-## iPhone / Mobile
-
-這個專案已做成手機可用的 PWA：
-
-- iPhone Safari 或 Chrome 可直接開啟網頁使用。
-- Safari 可用「分享」->「加入主畫面」變成像 App 一樣開啟。
-- 版面支援直向手機、安全區、44px 以上觸控按鈕。
-
-重要限制：手機麥克風需要安全來源。若要在 iPhone 上按「開始」使用麥克風，網址必須是 HTTPS。
-
-可用方式：
-
-1. 部署到支援 HTTPS 的服務，例如 Vercel、Render、Railway、Fly.io。
-2. 本機測試時用 HTTPS tunnel，例如 ngrok 或 localtunnel，把終端機顯示的本機 port 對外成 HTTPS。
-
-範例：
-
-```powershell
-npm start
-npx localtunnel --port 3001
+```text
+http://localhost:3000
 ```
 
-把 localtunnel 顯示的 `https://...` 網址用 iPhone 打開。
+如果 3000 已被占用，伺服器會自動改用下一個可用 port。
 
 ## Environment
 
-`.env.local` 需要：
+本機開發請建立 `.env.local`：
 
 ```env
 OPENAI_API_KEY=...
 ```
 
+不要把 API key 放進 GitHub Pages 或任何前端檔案。
+
+## GitHub Pages
+
+這個 repo 已加入 GitHub Pages workflow：
+
+```text
+.github/workflows/pages.yml
+```
+
+推到 `main` 後，GitHub Actions 會部署 `public/`。Pages 網址通常會是：
+
+```text
+https://ptgaminglife.github.io/translatepro/
+```
+
+若第一次啟用 Pages，請到 GitHub repo：
+
+```text
+Settings -> Pages -> Build and deployment -> Source -> GitHub Actions
+```
+
+## Supabase Edge Function
+
+GitHub Pages 只能放靜態前端，OpenAI API key 應放在 Supabase Edge Function Secrets。
+
+部署步驟：
+
+```powershell
+supabase login
+supabase link --project-ref <你的 Supabase Project Ref>
+supabase secrets set OPENAI_API_KEY=<你的 OpenAI API key>
+supabase functions deploy batch-translate --no-verify-jwt
+```
+
+`--no-verify-jwt` 是為了讓 GitHub Pages 打開後可直接呼叫此 Function。正式公開使用前，建議再加上用量限制、驗證或網域限制。
+
+## Configure Frontend
+
+有兩種方式設定 Supabase：
+
+1. 編輯 `public/config.js`：
+
+```js
+window.TRANSLATEPRO_CONFIG = {
+  supabaseProjectRef: "你的 Supabase Project Ref"
+};
+```
+
+2. 或直接打開 GitHub Pages，第一次使用時在畫面下方輸入 Project Ref。
+
+前端會呼叫：
+
+```text
+https://<project-ref>.supabase.co/functions/v1/batch-translate
+```
+
+## iPhone / Mobile
+
+iPhone 麥克風需要 HTTPS。請使用 GitHub Pages 或其他 HTTPS 網址開啟，不要用區網 IP 的 `http://`。
+
+可加入主畫面：
+
+```text
+Safari -> 分享 -> 加入主畫面
+```
+
 ## Voice Recommendations
 
-- `alloy`: 中性、穩定，適合正式口譯，預設推薦。
-- `coral`: 溫暖、清楚，適合客服與商務對話。
-- `verse`: 表情較明顯，適合導覽、主持。
-- `shimmer`: 明亮清晰，適合短句提醒。
-- `ash`: 沉穩低調，適合會議。
-
-## Notes
-
-- `gpt-realtime-translate` 用於即時翻譯。
-- `gpt-realtime-whisper` 用於即時語音轉文字。
-- 結束後可匯出 `.txt` 對話紀錄。
-- Supabase 目前未啟用；若要雲端保存，可在 `server.js` 增加上傳 endpoint。
+- `alloy`: 推薦，中性穩定，適合一般口譯。
+- `coral`: 友善明亮，適合服務情境。
+- `verse`: 自然敘述，適合較長句子。
+- `shimmer`: 輕快清楚，適合提示與短句。
+- `ash`: 低沉穩重，適合正式說明。

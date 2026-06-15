@@ -1,11 +1,12 @@
-const CACHE_NAME = "translatepro-shell-v1";
+const CACHE_NAME = "translatepro-shell-v2";
 const SHELL_FILES = [
-  "/",
-  "/index.html",
-  "/styles.css",
-  "/app.js",
-  "/manifest.webmanifest",
-  "/icon.svg"
+  "./",
+  "./index.html",
+  "./styles.css",
+  "./app.js",
+  "./config.js",
+  "./manifest.webmanifest",
+  "./icon.svg"
 ];
 
 self.addEventListener("install", (event) => {
@@ -24,11 +25,11 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  if (url.origin !== location.origin || url.pathname.startsWith("/api/")) return;
+  if (url.origin !== location.origin || url.pathname.includes("/api/")) return;
 
   event.respondWith(
     fetch(event.request).catch(() =>
-      caches.match(event.request).then((cached) => cached || caches.match("/"))
+      caches.match(event.request).then((cached) => cached || caches.match("./"))
     )
   );
 });

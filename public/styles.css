@@ -59,6 +59,10 @@ input {
   box-shadow: var(--shadow);
 }
 
+.mobile-notice[hidden] {
+  display: none;
+}
+
 .mobile-notice strong,
 .mobile-notice span {
   grid-column: 1;
@@ -72,6 +76,24 @@ input {
 .mobile-notice button {
   grid-column: 2;
   grid-row: 1 / span 2;
+}
+
+.setup-notice form {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.setup-notice input {
+  min-height: 44px;
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #fff;
+  color: var(--ink);
 }
 
 .pane {
@@ -326,5 +348,9 @@ h2 {
   .mobile-notice button {
     grid-column: 1;
     grid-row: auto;
+  }
+
+  .setup-notice form {
+    flex-direction: column;
   }
 }
