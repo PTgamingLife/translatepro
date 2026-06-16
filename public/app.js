@@ -1,5 +1,5 @@
 const languages = [
-  { code: "zh", label: "中文", english: "Chinese", speech: "zh-TW" },
+  { code: "zh", label: "繁體中文", english: "Traditional Chinese (Taiwan)", speech: "zh-TW" },
   { code: "en", label: "English", english: "English", speech: "en-US" },
   { code: "vi", label: "Tiếng Việt", english: "Vietnamese", speech: "vi-VN" },
   { code: "th", label: "ไทย", english: "Thai", speech: "th-TH" },
@@ -8,9 +8,9 @@ const languages = [
 
 const placeholders = {
   zh: {
-    sourceTop: "按下開始後錄音；按結束後會一次轉錄完整中文。",
-    sourceBottom: "按下開始後錄音；按結束後會一次轉錄完整中文。",
-    translation: "中文翻譯會顯示在這裡。",
+    sourceTop: "按下開始後錄音；按結束後會一次轉錄完整繁體中文。",
+    sourceBottom: "按下開始後錄音；按結束後會一次轉錄完整繁體中文。",
+    translation: "繁體中文翻譯會顯示在這裡。",
     inactive: "目前不是翻譯輸出區。"
   },
   en: {
@@ -127,7 +127,7 @@ async function startRecording() {
     recorder.addEventListener("stop", translateRecording);
     recorder.start();
     setLiveState(true, "錄音中");
-    setSourceText("錄音中...請完整說完後再按結束並翻譯。");
+    setSourceText("錄音中...請完整說完後再按「結束並翻譯」。");
   } catch (error) {
     console.error(error);
     cleanupRecording();
@@ -151,26 +151,31 @@ async function translateRecording() {
 
     if (!audioBlob.size) throw new Error("沒有收到錄音，請確認麥克風權限後再試一次。");
 
-    setSourceText("錄音完成，正在轉成文字並翻譯...");
-    const response = await fetch(batchTranslateUrl(source, target), {
-      method: "POST",
-      headers: { "Content-Type": mimeType },
-      body: audioBlob
-    });
+    setSourceText("錄音完成，正在產生快速翻譯...");
+    setTargetText("快速翻譯中，稍後會自動用精修結果更新。");
 
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "翻譯服務失敗");
+    const fastPromise = requestTranslation(audioBlob, mimeType, source, target, "fast");
+    const accuratePromise = requestTranslation(audioBlob, mimeType, source, target, "accurate");
 
-    setSourceText(data.transcript || "沒有轉錄出文字。");
-    setTargetText(data.translation || "沒有翻譯結果。");
-    pushLog("transcript", data.transcript || "");
-    pushLog("translation", data.translation || "");
-
-    if (els.speakToggle.checked && data.translation) {
-      speakTranslatedText(data.translation, target);
+    let fastData = null;
+    try {
+      fastData = await fastPromise;
+      applyTranslationResult(fastData, "快速翻譯");
+      setLiveState(true, "精修中");
+    } catch (error) {
+      console.warn("Fast translation failed", error);
+      setTargetText("快速翻譯失敗，正在等待精修結果...");
     }
-    els.exportButton.disabled = log.length === 0;
-    setLiveState(false, "已結束");
+
+    try {
+      const accurateData = await accuratePromise;
+      applyTranslationResult(accurateData, "精修翻譯");
+      setLiveState(false, "已結束");
+    } catch (error) {
+      if (!fastData) throw error;
+      console.warn("Accurate translation failed", error);
+      setLiveState(false, "快速完成");
+    }
   } catch (error) {
     console.error(error);
     alert(error.message || "翻譯服務失敗");
@@ -180,8 +185,34 @@ async function translateRecording() {
   }
 }
 
-function batchTranslateUrl(source, target) {
-  const query = `source=${encodeURIComponent(source)}&target=${encodeURIComponent(target)}`;
+async function requestTranslation(audioBlob, mimeType, source, target, mode) {
+  const response = await fetch(batchTranslateUrl(source, target, mode), {
+    method: "POST",
+    headers: { "Content-Type": mimeType },
+    body: audioBlob
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "翻譯服務失敗");
+  return data;
+}
+
+function applyTranslationResult(data, label) {
+  const transcript = data.transcript || "沒有轉錄出文字。";
+  const translation = data.translation || "沒有翻譯結果。";
+  setSourceText(transcript);
+  setTargetText(`${label}：\n${translation}`);
+  pushLog(label, translation);
+  pushLog(`${label}轉錄`, transcript);
+
+  if (label === "精修翻譯" && els.speakToggle.checked && data.translation) {
+    const target = activeDirection === "bottom-to-top" ? els.topLanguage.value : els.bottomLanguage.value;
+    speakTranslatedText(data.translation, target);
+  }
+  els.exportButton.disabled = log.length === 0;
+}
+
+function batchTranslateUrl(source, target, mode) {
+  const query = `source=${encodeURIComponent(source)}&target=${encodeURIComponent(target)}&mode=${encodeURIComponent(mode)}`;
   const edgeUrl = configuredEdgeFunctionUrl();
   if (edgeUrl) return `${edgeUrl}?${query}`;
   if (isLocalBackend()) return `/api/batch-translate?${query}`;
@@ -387,5 +418,5 @@ function labelOf(code) {
 }
 
 function languageOf(code) {
-  return languages.find((language) => language.code === code) || languages[1];
+  return languages.find((language) => language.code === code) || languages[0];
 }

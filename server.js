@@ -10,6 +10,16 @@ const publicDir = path.join(__dirname, "public");
 const port = Number(process.env.PORT || 3000);
 const maxPortAttempts = Number(process.env.PORT_RETRY_COUNT || 20);
 const realtimeModel = process.env.OPENAI_REALTIME_MODEL || "gpt-realtime-translate";
+const modeConfig = {
+  fast: {
+    transcribeModel: "gpt-4o-mini-transcribe",
+    translateModel: "gpt-4.1-mini"
+  },
+  accurate: {
+    transcribeModel: "gpt-4o-transcribe",
+    translateModel: "gpt-4.1"
+  }
+};
 
 loadLocalEnv();
 
@@ -189,6 +199,7 @@ async function batchTranslateRecording(req, res, url) {
 
     const source = normalizeLanguage(url.searchParams.get("source"));
     const target = normalizeLanguage(url.searchParams.get("target"));
+    const mode = normalizeMode(url.searchParams.get("mode"));
     if (!source || !target) {
       return json(res, 400, { error: "Missing source or target language." });
     }
@@ -200,12 +211,15 @@ async function batchTranslateRecording(req, res, url) {
 
     const contentType = req.headers["content-type"] || "audio/webm";
     const extension = extensionForAudioType(contentType);
-    const transcript = await transcribeAudio(audioBuffer, contentType, extension, source);
-    const translation = await translateTranscript(transcript, source, target);
+    const startedAt = Date.now();
+    const transcript = await transcribeAudio(audioBuffer, contentType, extension, source, mode);
+    const translation = await translateTranscript(transcript, source, target, mode);
 
     json(res, 200, {
       source: source.label,
       target: target.label,
+      mode,
+      elapsedMs: Date.now() - startedAt,
       transcript,
       translation
     });
@@ -265,13 +279,15 @@ async function postOpenAISdp(pathname, clientSecret, sdp) {
   return text;
 }
 
-async function transcribeAudio(audioBuffer, contentType, extension, source) {
+async function transcribeAudio(audioBuffer, contentType, extension, source, mode) {
   const form = new FormData();
   const blob = new Blob([audioBuffer], { type: contentType });
   form.append("file", blob, `recording.${extension}`);
-  form.append("model", process.env.OPENAI_TRANSCRIBE_MODEL || "gpt-4o-transcribe");
+  const configuredModel = mode === "fast" ? process.env.OPENAI_FAST_TRANSCRIBE_MODEL : process.env.OPENAI_TRANSCRIBE_MODEL;
+  form.append("model", configuredModel || modeConfig[mode].transcribeModel);
   form.append("response_format", "json");
   form.append("language", source.realtimeCode);
+  form.append("prompt", transcriptionPrompt(source));
 
   const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
@@ -292,7 +308,7 @@ async function transcribeAudio(audioBuffer, contentType, extension, source) {
   return data.text || "";
 }
 
-async function translateTranscript(transcript, source, target) {
+async function translateTranscript(transcript, source, target, mode) {
   if (!transcript.trim()) return "";
 
   const response = await fetch("https://api.openai.com/v1/responses", {
@@ -302,19 +318,14 @@ async function translateTranscript(transcript, source, target) {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: process.env.OPENAI_TRANSLATE_MODEL || "gpt-4.1-mini",
+      model: (mode === "fast" ? process.env.OPENAI_FAST_TRANSLATE_MODEL : process.env.OPENAI_TRANSLATE_MODEL) || modeConfig[mode].translateModel,
       input: [
         {
           role: "system",
           content: [
             {
               type: "input_text",
-              text: [
-                "You are a professional interpreter.",
-                `Translate the full ${source.label} transcript into ${target.label}.`,
-                "Preserve meaning across the whole recording, including context from earlier and later sentences.",
-                "Do not summarize. Do not add commentary. Output only the translated text."
-              ].join(" ")
+              text: translationInstructions(source, target, mode)
             }
           ]
         },
@@ -353,13 +364,42 @@ function extensionForAudioType(contentType) {
   return "webm";
 }
 
+function transcriptionPrompt(source) {
+  if (source.code === "zh") {
+    return "請使用繁體中文（台灣用字）轉錄，不要使用簡體中文。";
+  }
+  return "Transcribe accurately. Preserve names, numbers, and spoken meaning.";
+}
+
+function translationInstructions(source, target, mode) {
+  const quality = mode === "fast"
+    ? "Prioritize speed while preserving the main meaning."
+    : "Prioritize accuracy, context consistency, terminology, names, numbers, and tone.";
+  const traditionalChineseRule = target.code === "zh"
+    ? "The target is Traditional Chinese for Taiwan. Use only Traditional Chinese characters. Do not use Simplified Chinese."
+    : "";
+
+  return [
+    "You are a professional interpreter.",
+    `Translate the full ${source.label} transcript into ${target.label}.`,
+    quality,
+    "Preserve meaning across the whole recording, including context from earlier and later sentences.",
+    "Do not summarize. Do not add commentary. Output only the translated text.",
+    traditionalChineseRule
+  ].filter(Boolean).join(" ");
+}
+
+function normalizeMode(mode) {
+  return mode === "fast" ? "fast" : "accurate";
+}
+
 function normalizeLanguage(language) {
   const languages = {
-    zh: { label: "Chinese", realtimeCode: "zh" },
-    en: { label: "English", realtimeCode: "en" },
-    vi: { label: "Vietnamese", realtimeCode: "vi" },
-    th: { label: "Thai", realtimeCode: "th" },
-    id: { label: "Indonesian", realtimeCode: "id" }
+    zh: { code: "zh", label: "Traditional Chinese (Taiwan)", realtimeCode: "zh" },
+    en: { code: "en", label: "English", realtimeCode: "en" },
+    vi: { code: "vi", label: "Vietnamese", realtimeCode: "vi" },
+    th: { code: "th", label: "Thai", realtimeCode: "th" },
+    id: { code: "id", label: "Indonesian", realtimeCode: "id" }
   };
   return languages[language];
 }
