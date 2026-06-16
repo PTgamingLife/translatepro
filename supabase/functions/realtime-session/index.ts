@@ -54,8 +54,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "OpenAI-Beta": "realtime=v1"
+        "Content-Type": "application/json"
       },
       body: JSON.stringify(payload)
     });

@@ -172,8 +172,7 @@ async function postOpenAI(pathname, payload) {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-      "OpenAI-Beta": "realtime=v1"
+      "Content-Type": "application/json"
     },
     body: JSON.stringify(payload)
   });
