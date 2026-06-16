@@ -3,7 +3,8 @@
 //
 // Example:
 // window.TRANSLATEPRO_CONFIG = {
-//   supabaseProjectRef: "abcdefghijklmnopqrst"
+//   supabaseProjectRef: "abcdefghijklmnopqrst",
+//   supabaseAnonKey: "public-anon-key"
 // };
 //
 // Advanced:
@@ -11,5 +12,6 @@
 //   edgeFunctionUrl: "https://abcdefghijklmnopqrst.supabase.co/functions/v1/batch-translate"
 // };
 window.TRANSLATEPRO_CONFIG = {
-  supabaseProjectRef: "hhcubvixldieuwdeqnwc"
+  supabaseProjectRef: "hhcubvixldieuwdeqnwc",
+  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoY3Vidml4bGRpZXV3ZGVxbndjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NjcyNDYsImV4cCI6MjA5MTE0MzI0Nn0.zkWxfm0FugSEL9zW6pwDFWPqmRJ3ystOZfU8yRL2lPo"
 };

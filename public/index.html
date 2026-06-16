@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="TranslatePro" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <title>TranslatePro Batch Interpreter</title>
+    <title>TranslatePro Hybrid Interpreter</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="apple-touch-icon" href="icon.svg" />
     <link rel="stylesheet" href="styles.css" />
@@ -16,7 +16,7 @@
   <body>
     <div class="mobile-notice" id="mobileNotice" hidden>
       <strong>iPhone 使用提示</strong>
-      <span>麥克風需要 HTTPS。手機開啟時，請使用 GitHub Pages 或 Supabase/ngrok/localtunnel 的 https 網址。</span>
+      <span>麥克風需要 HTTPS。手機請使用 GitHub Pages 或其他 https 網址開啟。</span>
       <button id="dismissNotice" type="button">知道了</button>
     </div>
 
@@ -54,18 +54,12 @@
 
       <section class="control-strip" aria-label="錄音與翻譯控制">
         <div class="brand">TranslatePro</div>
-        <button id="startButton" class="primary">開始錄音</button>
-        <button id="stopButton" disabled>結束並翻譯</button>
+        <button id="topSpeakButton" class="primary">上方說話</button>
+        <button id="bottomSpeakButton" class="primary">下方說話</button>
+        <button id="stopButton" disabled>結束並修正</button>
         <label class="switch">
           <input id="speakToggle" type="checkbox" checked />
-          <span>翻譯後朗讀</span>
-        </label>
-        <label>
-          說話方向
-          <select id="directionSelect">
-            <option value="bottom-to-top">下方說，翻到上方</option>
-            <option value="top-to-bottom">上方說，翻到下方</option>
-          </select>
+          <span>修正後朗讀</span>
         </label>
         <label>
           語音模板
