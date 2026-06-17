@@ -9,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, "public");
 const port = Number(process.env.PORT || 3000);
 const maxPortAttempts = Number(process.env.PORT_RETRY_COUNT || 20);
-const realtimeModel = process.env.OPENAI_REALTIME_MODEL || "gpt-realtime";
+const realtimeModel = process.env.OPENAI_REALTIME_MODEL || "gpt-4o-realtime-preview";
 const modeConfig = {
   fast: {
     transcribeModel: "gpt-4o-mini-transcribe",
@@ -93,23 +93,16 @@ async function createRealtimeSession(res, body) {
     }
 
     const payload = {
-      session: {
-        type: "realtime",
-        model: realtimeModel,
-        instructions: realtimeInstructions(source, target),
-        output_modalities: ["text"],
-        audio: {
-          input: {
-            transcription: {
-              model: process.env.OPENAI_REALTIME_TRANSCRIBE_MODEL || "gpt-4o-mini-transcribe",
-              language: source.realtimeCode
-            },
-            turn_detection: {
-              type: "server_vad",
-              silence_duration_ms: 520
-            }
-          }
-        }
+      model: realtimeModel,
+      instructions: realtimeInstructions(source, target),
+      modalities: ["text"],
+      input_audio_transcription: {
+        model: process.env.OPENAI_REALTIME_TRANSCRIBE_MODEL || "gpt-4o-mini-transcribe",
+        language: source.realtimeCode
+      },
+      turn_detection: {
+        type: "server_vad",
+        silence_duration_ms: 520
       }
     };
 
