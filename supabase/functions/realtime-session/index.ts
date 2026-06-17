@@ -28,25 +28,18 @@ Deno.serve(async (req) => {
     const target = languageCode(body.target || "en");
     if (source === target) throw new Error("Source and target languages must be different");
 
-    const model = Deno.env.get("OPENAI_REALTIME_MODEL") || "gpt-realtime";
+    const model = Deno.env.get("OPENAI_REALTIME_MODEL") || "gpt-4o-realtime-preview";
     const payload = {
-      session: {
-        type: "realtime",
-        model,
-        instructions: realtimeInstructions(source, target),
-        output_modalities: ["text"],
-        audio: {
-          input: {
-            transcription: {
-              model: Deno.env.get("OPENAI_REALTIME_TRANSCRIBE_MODEL") || "gpt-4o-mini-transcribe",
-              language: languages[source].code
-            },
-            turn_detection: {
-              type: "server_vad",
-              silence_duration_ms: 520
-            }
-          }
-        }
+      model,
+      instructions: realtimeInstructions(source, target),
+      modalities: ["text"],
+      input_audio_transcription: {
+        model: Deno.env.get("OPENAI_REALTIME_TRANSCRIBE_MODEL") || "gpt-4o-mini-transcribe",
+        language: languages[source].code
+      },
+      turn_detection: {
+        type: "server_vad",
+        silence_duration_ms: 520
       }
     };
 
